@@ -4,7 +4,7 @@ A Glyph script that extrudes the edges of a selected quilt along a specified vec
 ## Selection
 This script allows the user to extrude the edges of a selected quilt in order to create a "cookie cutter" type model for problematic trimming operations when the surface to be trimmed and the trimming surface are nearly co-planar with a poorly defined intersection.
 
-When the script is run, a GUI appears that prompts the user to specify a normal vector and a distance. After specifying those two values, the user should click the "Select" button and choose the quilt that is to be used to define the shape of the cutter. After selecting the desired quilt, a single "cookie cutter" model will be automatically created by extruding the edges of the selected quilt in both directions along the distance and direction specified. Note that the value for the Normal Vector 
+When the script is run, a GUI appears that prompts the user to specify a normal vector and a distance. After specifying those two values, the user should click the "Select" button and choose the quilt that is to be used to define the shape of the cutter. After selecting the desired quilt, a single "cookie cutter" model will be automatically created by extruding the edges of the selected quilt in both directions along the distance and direction specified. Note that the value for the Normal Vector must contain three components which will be normalized, and the value for the Distance distance must be greater than zero.
 
 The "Cancel" button will exit the script without making any changes.
 
