@@ -128,8 +128,8 @@ proc makeWindow {} {
 }
 
 ## Set up defaults for window
-set color(Valid)   SystemWindow
-set color(Invalid) MistyRose
+set color(Valid)   "white"
+set color(Invalid) "misty rose"
     
 set input(norm) {1 0 0}
 set input(dS) 0.01
