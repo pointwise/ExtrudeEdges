@@ -21,24 +21,31 @@ package require PWI_Glyph 2.3
 pw::Script loadTk
 
 proc ExtrudeEdges { } {
-    global input
+    global input curSelection
     
     wm withdraw .
     
     set vec [pwu::Vector3 scale [pwu::Vector3 normalize $input(norm)] $input(dS)]
 
-    ## Selection of quilt
-    set text1 "Please select Quilt to extrude."
-    set mask [pw::Display createSelectionMask -requireDatabase {Quilts}]
+    # If there was a valid quilt selected when script starts then don't do this section
+    # curSelection is already populated from retrieveQuilts proc
+    if { ! [array exists curSelection] ||
+           [llength [array get curSelection Databases]] == 0 ||
+           [llength $curSelection(Databases)] == 0 } {
+        ## Selection of quilt
+        set text1 "Please select Quilt to extrude."
+        set mask [pw::Display createSelectionMask -requireDatabase {Quilts}]
 
-    set picked [pw::Display selectEntities -description $text1 \
-        -selectionmask $mask -single curSelection]
-    if {!$picked} {exit}
-
+        set picked [pw::Display selectEntities -description $text1 \
+            -selectionmask $mask -single curSelection]
+        if {!$picked} {exit}
+    }
+    
     set surfs [list]
 
     ## Get initial layer states
-    pw::Layer saveState orig
+    catch { pw::Layer removeState _extrudeEdgesState }
+    pw::Layer saveState _extrudeEdgesState
 
     ## Change layer to 999 to contain all created entites
     pw::Display isolateLayer 999
@@ -50,11 +57,13 @@ proc ExtrudeEdges { } {
         for { set ii 1 } { $ii <= $N } {incr ii} {
             set edge [$qq getBoundary $ii]
             set tmp1 [pw::Surface create]
-            $tmp1 sweep $edge [pwu::Vector3 scale $vec 1] 
-            lappend surfs [list $tmp1]
+            if { ! [catch {$tmp1 sweep $edge [pwu::Vector3 scale $vec 1]}] } {
+              lappend surfs [list $tmp1]
+            }
             set tmp2 [pw::Surface create]
-            $tmp2 sweep $edge [pwu::Vector3 scale $vec -1] 
-            lappend surfs [list $tmp2]
+            if { ! [catch {$tmp2 sweep $edge [pwu::Vector3 scale $vec -1]}] } {
+              lappend surfs [list $tmp2]
+            }
         }
     }
 
@@ -62,43 +71,47 @@ proc ExtrudeEdges { } {
     set newModel [pw::Model assemble -tolerance 0.01 $surfs]
 
     ## Restore initial layer state and cleanup, leaving layer 999 visible
-    pw::Layer restoreState {orig}
+    pw::Layer restoreState {_extrudeEdgesState}
     pw::Display showLayer 999
-    pw::Layer removeState {orig}
+    pw::Layer removeState {_extrudeEdgesState}
     
     exit
 }
 
 ## Create window
 proc makeWindow {} {
-    global w input
+  global w input curSelection
 
-    wm title . "Extrude Edges"
-    label $w(LabelTitle) -text "Extrusion Parameters:" -padx 10
-    setTitleFont $w(LabelTitle)
+  wm title . "Extrude Edges"
+  label $w(LabelTitle) -text "Extrusion Parameters:" -padx 10
+  setTitleFont $w(LabelTitle)
 
-    frame $w(FrameMain)
-    label $w(LabelVector) -text "Normal Vector:" -anchor e
-    entry $w(EntryVector) -width 10 -bd 2 -textvariable input(norm)
+  frame $w(FrameMain)
+  label $w(LabelVector) -text "Normal Vector:" -anchor e
+  entry $w(EntryVector) -width 10 -bd 2 -textvariable input(norm)
 
-    label $w(LabelExtent) -text "Distance:" -padx 2 -anchor e
-    entry $w(EntryExtent) -width 10 -bd 2 -textvariable input(dS)
+  label $w(LabelExtent) -text "Distance:" -padx 2 -anchor e
+  entry $w(EntryExtent) -width 10 -bd 2 -textvariable input(dS)
+  
+  if { [array exists curSelection] &&
+       [llength [array get curSelection Databases]] == 2 &&
+       [llength $curSelection(Databases)] == 1 } {
+      # Set text on button to "Run" if there is already a quilt selected
+      button $w(ButtonSelect) -text "Run" -command { ExtrudeEdges }
+  } else {
+      # Set text on button to "Select" if a quilt needs to be selected by the user
+      button $w(ButtonSelect) -text "Select" -command { ExtrudeEdges }
+  }
+  button $w(ButtonCancel) -text "Cancel" -command { destroy . }
 
-    button $w(ButtonSelect) -text "Select" -command { ExtrudeEdges }
-
-    button $w(ButtonCancel) -text "Cancel" -command { destroy . }
-
-    frame $w(FrameLogo) -relief sunken
-    label $w(Logo) -image [pwLogo] -bd 0 -relief flat
+  frame $w(FrameLogo) -relief sunken
+  label $w(Logo) -image [pwLogo] -bd 0 -relief flat
 
   # set up validation after all widgets are created so that they all exist when
   # validation fires the first time; if they don't all exist, updateButtons
   # will fail
-  $w(EntryVector) configure -validate key \
-    -vcmd { validateNorm %P EntryVector }
-  $w(EntryExtent) configure -validate key \
-    -vcmd { validateAlpha %P EntryExtent }
-
+  $w(EntryVector) configure -validate key -vcmd { validateNorm %P EntryVector }
+  $w(EntryExtent) configure -validate key -vcmd { validateAlpha %P EntryExtent }
 
   # lay out the form
   pack $w(LabelTitle) -side top
@@ -260,6 +273,13 @@ ZShAUfVa3Bz/EpQ70oWJC2mAKDmwEHYAIxhikAQPeOCLdRTEAhGIQKL0IMoGTGMgIBClA9QxkA3U
 
   return [image create photo -format GIF -data $logoData]
 }
+
+
+################################################################################
+# Test if quilts were selected before script starts
+################################################################################
+
+pw::Display getSelectedEntities -selectionmask [pw::Display createSelectionMask -requireDatabase {Quilts}] curSelection
 
 makeWindow
 
